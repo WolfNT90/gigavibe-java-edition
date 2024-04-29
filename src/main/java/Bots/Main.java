@@ -152,15 +152,15 @@ public class Main extends ListenerAdapter {
 
         if (dotenv.get("COLOUR") == null) {
             System.err.println("Hex value COLOUR is not set in " + new File(".env").getAbsolutePath() + " example: #FFCCEE");
-            return;
-        }
-        try {
-            botColour = Color.decode(dotenv.get("COLOUR"));
-        } catch (NumberFormatException e) {
-            System.err.println("Colour was invalid.");
-            e.printStackTrace();
-            return;
-        }
+        } else {
+            try {
+                botColour = Color.decode(dotenv.get("COLOUR"));
+            } catch (NumberFormatException e) {
+                System.err.println("Colour was invalid. Defaulting to white.");
+                e.printStackTrace();
+                botColour = Color.white;
+            }
+	    }
         try {
             List<Class<?>> classes = new ArrayList<>();
             String tempJarPath = String.valueOf(Main.class.getProtectionDomain().getCodeSource().getLocation().toURI());
@@ -215,6 +215,11 @@ public class Main extends ListenerAdapter {
         GuildDataManager.Init();
         LastFMManager.Init();
         PlayerManager.getInstance();
+
+        if (botToken.isEmpty()) {
+		    System.err.println("You've forgotten to put a Discord BOT Token. Exiting.");
+		    System.exit(2);
+	    }
 
         bot = JDABuilder.create(botToken, Arrays.asList(INTENTS))
                 .enableCache(CacheFlag.MEMBER_OVERRIDES, CacheFlag.VOICE_STATE)
