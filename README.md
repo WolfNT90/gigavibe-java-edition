@@ -1,4 +1,4 @@
-# Zenvibe
+# Gigavibe
 
 Discord bot written in java using JDA and lavaplayer for audio functionality. Has various site support, custom (user defined)
 dj users or roles and some other cool features for you to play with once you [invite](http://zenvibe.ddns.net/) or self-host the bot.
