@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an idea for zenvibe
+about: Suggest an idea for Gigavibe
 title: ''
 labels: enhancement
 assignees: ''

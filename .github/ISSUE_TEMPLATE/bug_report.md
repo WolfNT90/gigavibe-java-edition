@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Create a report to help improve zenvibe
+about: Create a report to help improve Gigavibe
 title: ''
 labels: bug
 assignees: ''
