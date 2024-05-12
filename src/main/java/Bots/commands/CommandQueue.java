@@ -38,7 +38,7 @@ public class CommandQueue extends BaseCommand {
             newPageNumber = queuePages.getOrDefault(event.getGuild().getIdLong(), 1) - 1;
         }
         int maxPage = (Queue.size() + 4) / 5;
-        newPageNumber = Math.floorMod(newPageNumber - 1, maxPage) + 1; //wrap around (1-indexed)
+        newPageNumber = Math.floorMod(newPageNumber - 1, maxPage < 1 ? 1 : maxPage) + 1; //wrap around (1-indexed)
         queuePages.put(event.getGuild().getIdLong(), newPageNumber);
         long queueTimeLength = 0;
         for (AudioTrack queueTrack : Queue) {
