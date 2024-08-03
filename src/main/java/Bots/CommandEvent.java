@@ -9,6 +9,7 @@ import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.interactions.InteractionHook;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
+import net.dv8tion.jda.api.interactions.components.ItemComponent;
 import net.dv8tion.jda.api.utils.FileUpload;
 import net.dv8tion.jda.internal.interactions.InteractionHookImpl;
 import org.json.simple.JSONObject;
@@ -32,20 +33,20 @@ import static Bots.Main.createQuickError;
  * @author 9382
  * @version 2.1.1
  */
-public class MessageEvent {
-    final Object coreEvent;
-    final JDA JDA;
-    final Guild guild;
-    final GuildMessageChannelUnion channel;
-    final Member member;
-    final User user;
-    final String[] args;
-    final OptionMapping[] options;
-    final String rawContent;
-    final List<Message.Attachment> attachments;
-    final JSONObject config;
+public class CommandEvent {
+    private final Object coreEvent;
+    private final JDA JDA;
+    private final Guild guild;
+    private final GuildMessageChannelUnion channel;
+    private final Member member;
+    private final User user;
+    private final String[] args;
+    private final OptionMapping[] options;
+    private final String rawContent;
+    private final List<Message.Attachment> attachments;
+    private final JSONObject config;
 
-    public MessageEvent(MessageReceivedEvent event) {
+    public CommandEvent(MessageReceivedEvent event) {
         this.coreEvent = event;
         this.JDA = event.getJDA();
         this.guild = event.getGuild();
@@ -59,7 +60,7 @@ public class MessageEvent {
         this.config = GuildDataManager.GetGuildConfig(event.getGuild().getIdLong());
     }
 
-    public MessageEvent(SlashCommandInteractionEvent event) {
+    public CommandEvent(SlashCommandInteractionEvent event) {
         this.coreEvent = event;
         this.JDA = event.getJDA();
         this.guild = event.getGuild();
@@ -130,6 +131,7 @@ public class MessageEvent {
         return this.rawContent;
     }
 
+    @Deprecated
     public Object getCoreEvent() { //Use in commands as little as you can, since this gets hacky fast
         return this.coreEvent;
     }
@@ -148,16 +150,16 @@ public class MessageEvent {
         deferReply(false);
     }
 
-    public void reply(Consumer<MessageEvent.Response> lambda, String s) {
+    public void reply(Consumer<CommandEvent.Response> lambda, String s) {
         if (isSlash()) {
             SlashCommandInteractionEvent event = ((SlashCommandInteractionEvent) this.coreEvent);
             if (isAcknowledged())
-                event.getHook().editOriginal(s).queue(x -> lambda.accept(new MessageEvent.Response(x)));
+                event.getHook().editOriginal(s).queue(x -> lambda.accept(new CommandEvent.Response(x)));
             else
-                event.reply(s).queue(x -> lambda.accept(new MessageEvent.Response(x)));
+                event.reply(s).queue(x -> lambda.accept(new CommandEvent.Response(x)));
         } else {
             try {
-                ((MessageReceivedEvent) this.coreEvent).getMessage().reply(s).queue(x -> lambda.accept(new MessageEvent.Response(x)));
+                ((MessageReceivedEvent) this.coreEvent).getMessage().reply(s).queue(x -> lambda.accept(new CommandEvent.Response(x)));
             } catch (Exception e) {
                 System.err.println(e.getMessage());
             }
@@ -169,16 +171,16 @@ public class MessageEvent {
         }, s);
     }
 
-    public void replyEmbeds(Consumer<MessageEvent.Response> lambda, MessageEmbed embed, MessageEmbed... embeds) {
+    public void replyEmbeds(Consumer<CommandEvent.Response> lambda, MessageEmbed embed, MessageEmbed... embeds) {
         if (isSlash()) {
             SlashCommandInteractionEvent event = ((SlashCommandInteractionEvent) this.coreEvent);
             if (isAcknowledged()) {
                 List<MessageEmbed> allembeds = new ArrayList<>();
                 allembeds.add(embed);
                 allembeds.addAll(List.of(embeds));
-                event.getHook().editOriginalEmbeds(allembeds).queue(x -> lambda.accept(new MessageEvent.Response(x)));
+                event.getHook().editOriginalEmbeds(allembeds).queue(x -> lambda.accept(new CommandEvent.Response(x)));
             } else
-                event.replyEmbeds(embed, embeds).queue(x -> lambda.accept(new MessageEvent.Response(x)));
+                event.replyEmbeds(embed, embeds).queue(x -> lambda.accept(new CommandEvent.Response(x)));
         } else {
             MessageReceivedEvent event = ((MessageReceivedEvent) this.coreEvent);
             if (!event.getGuild().getSelfMember().hasPermission(Permission.MESSAGE_SEND)) {
@@ -188,7 +190,7 @@ public class MessageEvent {
                 } // this can safely be ignored as I expect this to throw an exception.
             }
             try {
-                event.getMessage().replyEmbeds(embed, embeds).queue(x -> lambda.accept(new MessageEvent.Response(x)));
+                event.getMessage().replyEmbeds(embed, embeds).queue(x -> lambda.accept(new CommandEvent.Response(x)));
             } catch (Exception e) {
                 System.err.println(e.getMessage());
             }
@@ -200,16 +202,16 @@ public class MessageEvent {
         }, embed, embeds);
     }
 
-    public void replyFiles(Consumer<MessageEvent.Response> lambda, FileUpload... files) {
+    public void replyFiles(Consumer<CommandEvent.Response> lambda, FileUpload... files) {
         if (isSlash()) {
             SlashCommandInteractionEvent event = ((SlashCommandInteractionEvent) this.coreEvent);
             if (isAcknowledged())
-                event.getHook().editOriginalAttachments(files).queue(x -> lambda.accept(new MessageEvent.Response(x)));
+                event.getHook().editOriginalAttachments(files).queue(x -> lambda.accept(new CommandEvent.Response(x)));
             else
-                event.replyFiles(files).queue(x -> lambda.accept(new MessageEvent.Response(x)));
+                event.replyFiles(files).queue(x -> lambda.accept(new CommandEvent.Response(x)));
         } else {
             try {
-                ((MessageReceivedEvent) this.coreEvent).getMessage().replyFiles(files).queue(x -> lambda.accept(new MessageEvent.Response(x)));
+                ((MessageReceivedEvent) this.coreEvent).getMessage().replyFiles(files).queue(x -> lambda.accept(new CommandEvent.Response(x)));
             } catch (Exception e) {
                 System.err.println(e.getMessage());
             }
@@ -227,7 +229,7 @@ public class MessageEvent {
 
     public static class Response {
         //Bad type conversion practices, the sequel
-        final Object coreObject;
+        private final Object coreObject;
 
         public Response(InteractionHook interaction) {
             this.coreObject = interaction;
@@ -235,6 +237,11 @@ public class MessageEvent {
 
         public Response(Message message) {
             this.coreObject = message;
+        }
+
+        @Deprecated
+        public Object getCoreObject() {
+            return this.coreObject;
         }
 
         public boolean isSlash() {
@@ -279,6 +286,18 @@ public class MessageEvent {
             } else {
                 ((Message) this.coreObject).editMessageAttachments(files).queue();
             }
+        }
+
+        public void setActionRow(ItemComponent... actionRow) {
+            if (isSlash()) {
+                ((InteractionHookImpl) this.coreObject).editOriginalComponents().setActionRow(actionRow).queue();
+            } else {
+                ((Message) this.coreObject).editMessageComponents().setActionRow(actionRow).queue();
+            }
+        }
+
+        public void setActionRow(List<ItemComponent> actionRow) {
+            setActionRow(actionRow.toArray(new ItemComponent[0]));
         }
     }
 }

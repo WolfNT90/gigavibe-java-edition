@@ -1,11 +1,9 @@
 package Bots.commands;
 
 import Bots.BaseCommand;
-import Bots.MessageEvent;
+import Bots.CommandEvent;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
-import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import net.dv8tion.jda.api.interactions.components.ItemComponent;
@@ -92,7 +90,7 @@ public class CommandHelp extends BaseCommand {
     }
 
     @Override
-    public void execute(MessageEvent event) {
+    public void execute(CommandEvent event) {
         Category userCategory = null;
         if (event.getArgs().length > 1) {
             for (Category category : Category.values()) {
@@ -115,15 +113,7 @@ public class CommandHelp extends BaseCommand {
             }
             embed.setFooter("Click the buttons to get more information on a group.");
         }
-        if (!event.isSlash()) { //Incredibly hacky fix because I don't want to implement all the backend just for this
-            ((MessageReceivedEvent) event.getCoreEvent()).getMessage().replyEmbeds(embed.build()).queue(
-                    a -> a.editMessageComponents().setActionRow(CategoryButtons).queue()
-            );
-        } else {
-            ((SlashCommandInteractionEvent) event.getCoreEvent()).replyEmbeds(embed.build()).queue(
-                    a -> a.editOriginalComponents().setActionRow(CategoryButtons).queue()
-            );
-        }
+        event.replyEmbeds(a -> a.setActionRow(CategoryButtons), embed.build());
     }
 
     @Override

@@ -2,7 +2,7 @@ package Bots.commands;
 
 import Bots.BaseCommand;
 import Bots.CommandStateChecker.Check;
-import Bots.MessageEvent;
+import Bots.CommandEvent;
 import Bots.lavaplayer.GuildMusicManager;
 import Bots.lavaplayer.PlayerManager;
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
@@ -25,7 +25,7 @@ public class CommandInsert extends BaseCommand {
     }
 
     @Override
-    public void execute(MessageEvent event) {
+    public void execute(CommandEvent event) {
         String[] args = event.getContentRaw().split(" ", 3);
         // check here to ensure args[2] is never undefined.
         if (args.length != 3) {
@@ -78,11 +78,15 @@ public class CommandInsert extends BaseCommand {
                     musicManager.scheduler.queue(TemporaryQueue.get(i));
                 }
                 for (String track : tracksToPlay) {
-                    PlayerManager.getInstance().loadAndPlay(event, track, false, () -> {
+                    PlayerManager.getInstance().loadAndPlay(event, track, false).whenComplete((loadResult, throwable) -> {
                         for (int i = position; i < TemporaryQueue.size(); i++) {
                             musicManager.scheduler.queue(TemporaryQueue.get(i));
                         }
-                        event.replyEmbeds(createQuickEmbed(" ", "Added the track to position **" + args[1] + "**"));
+                        if (loadResult.songWasPlayed) {
+                            event.replyEmbeds(createQuickEmbed(" ", "Added the track to position **" + args[1] + "**"));
+                        } else {
+                            event.replyEmbeds(createQuickError("There was an error while adding the track to the queue: `" + loadResult.name() + "`"));
+                        }
                     });
                 }
             } catch (Exception e) {
