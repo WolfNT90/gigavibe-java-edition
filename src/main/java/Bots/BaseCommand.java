@@ -9,10 +9,6 @@ import static Bots.CommandStateChecker.*;
 public abstract class BaseCommand {
     public SlashCommandData slashCommand;
 
-    public enum Category {
-        General, Music, DJ, Admin, Dev
-    }
-
     public void Init() { //Optional initialisation stuff if something is required on start for a command
     }
 
@@ -20,9 +16,9 @@ public abstract class BaseCommand {
         return new Check[0];
     }
 
-    public abstract void execute(MessageEvent event) throws Exception; //The main event loop
+    public abstract void execute(CommandEvent event) throws Exception; //The main event loop
 
-    public final void executeWithChecks(MessageEvent event) throws Exception { //For main - do not override
+    public final void executeWithChecks(CommandEvent event) throws Exception { //For main - do not override
         CheckResult checkResult = PerformChecks(event, this.getChecks());
         if (!checkResult.Succeeded()) {
             event.replyEmbeds(Main.createQuickEmbed("❌ **Not Allowed**", checkResult.GetMessage()));
@@ -46,5 +42,9 @@ public abstract class BaseCommand {
 
     public long getRatelimit() { //Ratelimit in milliseconds
         return 0;
+    }
+
+    public enum Category {
+        General, Music, DJ, Admin, Dev
     }
 }
