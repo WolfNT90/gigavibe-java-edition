@@ -14,7 +14,6 @@ import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import dev.lavalink.youtube.YoutubeAudioSourceManager;
 import dev.lavalink.youtube.clients.*;
-import dev.lavalink.youtube.clients.skeleton.Client;
 import io.github.cdimascio.dotenv.Dotenv;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Guild;
@@ -38,7 +37,7 @@ import java.util.regex.Pattern;
 import static Bots.Main.*;
 
 public class PlayerManager {
-    private static final HashMap<String, Pattern> patterns = new HashMap<>() {{
+    private static final Map<String, Pattern> patterns = new HashMap<>() {{
         put("Spotify", Pattern.compile("<img src=\"([^\"]+)\" width=\""));
         put("SoundCloud", Pattern.compile("\"thumbnail_url\":\"([^\"]+)\",\""));
     }};
@@ -67,7 +66,7 @@ public class PlayerManager {
         AudioSourceManagers.registerLocalSource(this.audioPlayerManager);
     }
 
-    public static PlayerManager getInstance() {
+    public synchronized static PlayerManager getInstance() {
         if (INSTANCE == null) {
             INSTANCE = new PlayerManager();
         }
@@ -80,8 +79,8 @@ public class PlayerManager {
             guildMusicManager.audioPlayer.setFilterFactory((track, format, output) -> {
                 VibratoPcmAudioFilter vibrato = new VibratoPcmAudioFilter(output, format.channelCount, format.sampleRate);
                 TimescalePcmAudioFilter timescale = new TimescalePcmAudioFilter(vibrato, format.channelCount, format.sampleRate);
-                guildMusicManager.filters.put(audioFilters.Vibrato, vibrato);
-                guildMusicManager.filters.put(audioFilters.Timescale, timescale);
+                guildMusicManager.filters.put(AudioFilters.Vibrato, vibrato);
+                guildMusicManager.filters.put(AudioFilters.Timescale, timescale);
                 //Just make sure the items are in the reverse order they were made and all will be good
                 return Arrays.asList(new AudioFilter[]{timescale, vibrato});
             });
@@ -127,7 +126,7 @@ public class PlayerManager {
         replyWithEmbed(eventOrChannel, embed, false);
     }
 
-    public CompletableFuture<LoadResult> loadAndPlay(Object eventOrChannel, String trackUrl, Boolean sendEmbed) {
+    public CompletableFuture<LoadResult> loadAndPlay(Object eventOrChannel, String trackUrl, boolean sendEmbed) {
         assert (eventOrChannel instanceof CommandEvent || eventOrChannel instanceof GuildMessageChannelUnion);
         CompletableFuture<LoadResult> loadResultFuture = new CompletableFuture<>();
         Guild commandGuild;
@@ -213,7 +212,7 @@ public class PlayerManager {
             @Override
             public void loadFailed(FriendlyException e) {
                 System.err.println("Track failed to load.\nURL: \"" + trackUrl + "\"\nReason: " + e.getMessage());
-                skips.remove(commandGuild.getIdLong());
+                skipCountGuilds.remove(commandGuild.getIdLong());
 
                 final StringBuilder loadFailedBuilder = new StringBuilder();
                 if (e.getMessage().toLowerCase().contains("search response: 400")) {

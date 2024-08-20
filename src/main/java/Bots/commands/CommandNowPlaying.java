@@ -31,7 +31,7 @@ public class CommandNowPlaying extends BaseCommand {
         long trackPos = track.getPosition();
         if (!track.getInfo().isStream) {
             double totalTime = track.getDuration();
-            TimescalePcmAudioFilter timescale = (TimescalePcmAudioFilter) musicManager.filters.get(audioFilters.Timescale);
+            TimescalePcmAudioFilter timescale = (TimescalePcmAudioFilter) musicManager.filters.get(AudioFilters.Timescale);
             if (timescale != null) {
                 trackPos = (long) (trackPos / timescale.getSpeed());
                 totalTime = totalTime / timescale.getSpeed();
@@ -58,7 +58,7 @@ public class CommandNowPlaying extends BaseCommand {
         try {
             embed.setTitle((track.getInfo().title), (track.getInfo().uri));
             if (track.getInfo().isStream && Objects.equals(audioPlayer.getPlayingTrack().getSourceManager().getSourceName(), "http")) {
-                String streamTitle = RadioDataFetcher.getStreamSongNow(track.getInfo().uri);
+                String streamTitle = RadioDataFetcher.getStreamSongNow(track.getInfo().uri)[0];
                 embed.setTitle(streamTitle, track.getInfo().uri);
             }
         } catch (Exception ignored) {
