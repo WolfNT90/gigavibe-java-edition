@@ -9,6 +9,7 @@ import io.github.cdimascio.dotenv.Dotenv;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
@@ -72,7 +73,7 @@ public class Main extends ListenerAdapter {
     public static final List<String> commandNames = new ArrayList<>(); // Purely for conflict detection
     public static final Map<BaseCommand, Map<Long, Long>> ratelimitTracker = new HashMap<>();
     public static final ThreadPoolExecutor commandThreads = (ThreadPoolExecutor) Executors.newCachedThreadPool();
-    public static final JSONObject commandUsageTracker = GetConfig("usage-stats");
+    public static JSONObject commandUsageTracker;
 
     // guild management
     public static final Map<Long, List<Member>> skipCountGuilds = new HashMap<>();
@@ -88,16 +89,17 @@ public class Main extends ListenerAdapter {
     public static void main(String[] args) throws Exception {
         OutputLogger.Init("log.log");
 
+        prepareEnvironment();
         Dotenv dotenv = Dotenv.load();
         String botToken = dotenv.get("TOKEN");
         if (botToken == null) {
             throw new NullPointerException("TOKEN is not set in the .env file");
         }
-        prepareEnvironment();
-        loadCommandClasses();
         GuildDataManager.Init();
+        commandUsageTracker = GetConfig("usage-stats");
         LastFMManager.Init();
         PlayerManager.getInstance();
+        loadCommandClasses();
 
         Message.suppressContentIntentWarning();
         bot = JDABuilder.create(botToken, Arrays.asList(INTENTS))
@@ -180,7 +182,6 @@ public class Main extends ListenerAdapter {
         List<Class<?>> classes = new ArrayList<>();
         String tempJarPath = String.valueOf(Main.class.getProtectionDomain().getCodeSource().getLocation().toURI());
         JarFile jarFile = null;
-        boolean jarFileCheck = false;
         try {
             jarFile = new JarFile(tempJarPath.substring(5));
         } catch (FileNotFoundException ignored) {
@@ -201,9 +202,8 @@ public class Main extends ListenerAdapter {
                 } catch (Exception ignored1) {
                 }
             }
-            jarFileCheck = true;
         }
-        if (!jarFileCheck) {
+        if (jarFile != null) {
             Enumeration<JarEntry> resources = jarFile.entries();
             while (resources.hasMoreElements()) {
                 JarEntry url = resources.nextElement();
@@ -230,7 +230,6 @@ public class Main extends ListenerAdapter {
     private static void setupTasks() {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> GuildDataManager.SaveQueues(bot)));
         Runtime.getRuntime().addShutdownHook(new Thread(GuildDataManager::SaveConfigs));
-        Runtime.getRuntime().addShutdownHook(new Thread(OutputLogger::Close));
         Timer timer = new Timer();
         TimerTask task = new TimerTask() {
             final File updateFile = new File("update/bot.jar");
@@ -287,14 +286,6 @@ public class Main extends ListenerAdapter {
         }
     }
 
-    public static MessageEmbed createQuickEmbed(String title, String description) {
-        EmbedBuilder eb = new EmbedBuilder();
-        eb.setTitle(title);
-        eb.setColor(botColour);
-        eb.setDescription(description);
-        return eb.build();
-    }
-
     public static MessageEmbed createQuickEmbed(String title, String description, String footer) {
         EmbedBuilder eb = new EmbedBuilder();
         eb.setTitle(title);
@@ -302,6 +293,10 @@ public class Main extends ListenerAdapter {
         eb.setDescription(description);
         eb.setFooter(footer);
         return eb.build();
+    }
+
+    public static MessageEmbed createQuickEmbed(String title, String description) {
+        return createQuickEmbed(title, description, null);
     }
 
     public static MessageEmbed createQuickError(String description) {
@@ -370,6 +365,20 @@ public class Main extends ListenerAdapter {
         }
         totalSet.add(finalSeconds);
         return String.join("", totalSet);
+    }
+
+    public static String sanitise(String str) {
+        String[] chars = new String[]{"_", "*", "`", "#", ">", "[", "]", "(", ")", "~"};
+
+        for (String c : chars) {
+            if (str.contains(c)) {
+                // double \ for escaping the regex to ensure normal interpretation
+                // quadruple \ for the replacement because java sucks
+                // also intellij hates the idea of `"\\" + c` and insists its an error, so we use String.format to shut it up
+                str = str.replaceAll(String.format("\\%s", c), "\\\\" + c);
+            }
+        }
+        return str;
     }
 
     public static GuildChannel getGuildChannelFromID(Long ID) {
@@ -589,6 +598,14 @@ public class Main extends ListenerAdapter {
 
     @Override
     public void onSlashCommandInteraction(@NotNull SlashCommandInteractionEvent event) {
+        if (!event.isFromGuild()) {
+            event.replyEmbeds(createQuickError("I don't currently work outside of guilds.")).queue();
+            return;
+        }
+        if (!event.getGuild().getSelfMember().hasPermission(event.getGuildChannel(), Permission.VIEW_CHANNEL)) {
+            event.replyEmbeds(createQuickError("I don't have permission to read or send messages to this channel.")).setEphemeral(true).queue();
+            return;
+        }
         for (BaseCommand Command : commands) {
             if (processSlashCommand(Command, event)) {
                 return;
@@ -693,7 +710,7 @@ public class Main extends ListenerAdapter {
                     player.setVolume(volume);
                     // TODO: audio filters to be added here.
 
-                    Objects.requireNonNull(channelUnion).sendMessageEmbeds(createQuickEmbed("✅ **Success**", "An update to the bot occurred, your queue and parameters have been restored!")).queue();
+                    Objects.requireNonNull(channelUnion).sendMessageEmbeds(createQuickEmbed("✅ **Success**", "An update to the bot occurred, your queue and parameters have been restored!\n-# If you wish to see what changed, feel free to join the support server found in the bot's about me.")).queue();
                     scanner.close();
                     ignoreFiles = file.delete();
                 } catch (Exception e) {

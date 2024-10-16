@@ -73,7 +73,7 @@ public class PlayerManager {
         return INSTANCE;
     }
 
-    public GuildMusicManager getMusicManager(Guild guild) {
+    public synchronized GuildMusicManager getMusicManager(Guild guild) {
         return this.musicManagers.computeIfAbsent(guild.getIdLong(), (guildId) -> {
             final GuildMusicManager guildMusicManager = new GuildMusicManager(this.audioPlayerManager);
             guildMusicManager.audioPlayer.setFilterFactory((track, format, output) -> {
@@ -98,7 +98,7 @@ public class PlayerManager {
             String trackName = trackNameArray[trackNameArray.length - 1];
             embed.setTitle(trackName, audioTrack.getInfo().uri);
         } else {
-            embed.setTitle(audioTrack.getInfo().title, audioTrack.getInfo().uri);
+            embed.setTitle(sanitise(audioTrack.getInfo().title), audioTrack.getInfo().uri);
         }
         String length;
         if (audioTrack.getInfo().length > 432000000 || audioTrack.getInfo().length <= 1) {
@@ -159,6 +159,9 @@ public class PlayerManager {
             public void playlistLoaded(AudioPlaylist audioPlaylist) {
                 boolean autoplaying = AutoplayGuilds.contains(commandGuild.getIdLong());
                 final List<AudioTrack> tracks = audioPlaylist.getTracks();
+                for (AudioTrack audioTrack : tracks) {
+                    audioTrack.setUserData(new TrackUserData(eventOrChannel));
+                }
                 if (!tracks.isEmpty()) {
                     AudioTrack track = tracks.get(0);
                     if (autoplaying)
@@ -183,7 +186,7 @@ public class PlayerManager {
                             if (tracks.get(i).getInfo().title == null) {
                                 embed.appendDescription(i + 1 + ". [" + tracks.get(i).getInfo().identifier + "](" + tracks.get(i).getInfo().uri + ")\n");
                             } else {
-                                embed.appendDescription(i + 1 + ". [" + tracks.get(i).getInfo().title + "](" + tracks.get(i).getInfo().uri + ")\n");
+                                embed.appendDescription(i + 1 + ". [" + sanitise(tracks.get(i).getInfo().title) + "](" + tracks.get(i).getInfo().uri + ")\n");
                             }
                         }
                         if (tracks.size() > 5) {
@@ -193,9 +196,6 @@ public class PlayerManager {
                         if (sendEmbed) {
                             replyWithEmbed(eventOrChannel, embed.build());
                         }
-                    }
-                    for (AudioTrack audioTrack : tracks) {
-                        audioTrack.setUserData(new TrackUserData(eventOrChannel));
                     }
                 }
                 loadResultFuture.complete(LoadResult.PLAYLIST_LOADED);

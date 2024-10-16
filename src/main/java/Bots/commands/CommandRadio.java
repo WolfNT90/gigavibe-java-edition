@@ -41,6 +41,7 @@ public class CommandRadio extends BaseCommand {
         put("RMF FM", "https://rs6-krk2-cyfronet.rmfstream.pl/RMFFM48");
         put("M1 Plius", "https://radio.m-1.fm/m1plius/aacp64");
         put("NRK Jazz", "http://lyd.nrk.no:80/nrk_radio_jazz_aac_h");
+        put("XS Manchester", "https://media-ice.musicradio.com/RealXSManchesterMP3");
     }};
 
     public static String getRadio(String search) throws IOException {
@@ -85,8 +86,8 @@ public class CommandRadio extends BaseCommand {
             eb.setColor(botColour);
             eb.appendDescription("\uD83D\uDCFB **Radio list:**\n\n");
             getRadios().forEach((key, value) -> eb.appendDescription("**[" + key + "](" + value + ")**\n"));
-            eb.appendDescription("\n*Or use `" + botPrefix + "radio search <String>`*");
-            eb.setFooter("Use \"" + readableBotPrefix + "radio <Radio Name>\" to play a radio station.");
+            eb.appendDescription("\n*Or use `" + readableBotPrefix + " radio search <String>`*");
+            eb.setFooter("Use \"" + readableBotPrefix + " radio <Radio Name>\" to play a radio station.");
             if (event.getArgs().length == 1) {
                 event.replyEmbeds(createQuickError("No arguments given, heres some radio stations to choose from:"), eb.build());
             } else {
@@ -129,7 +130,7 @@ public class CommandRadio extends BaseCommand {
                 event.replyEmbeds(createQuickError("Couldn't find a radio station with the given name"));
             } else {
                 PlayerManager.getInstance().loadAndPlay(event, radioURL, false);
-                event.replyEmbeds(createQuickEmbed("Queued Radio station:", "**[" + RadioDataFetcher.getStreamTitle(radioURL) + "](" + radioURL + ")**"));
+                event.replyEmbeds(createQuickEmbed("Queued Radio station:", "**[" + sanitise(RadioDataFetcher.getStreamTitle(radioURL)) + "](" + radioURL + ")**"));
             }
         } else {
             String wantedRadio = event.getContentRaw().split(" ", 2)[1].toLowerCase();
