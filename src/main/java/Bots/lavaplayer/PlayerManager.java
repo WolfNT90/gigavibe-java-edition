@@ -9,6 +9,10 @@ import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.player.DefaultAudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.source.AudioSourceManagers;
+import com.sedmelluq.discord.lavaplayer.source.bandcamp.BandcampAudioSourceManager;
+import com.sedmelluq.discord.lavaplayer.source.beam.BeamAudioSourceManager;
+import com.sedmelluq.discord.lavaplayer.source.getyarn.GetyarnAudioSourceManager;
+import com.sedmelluq.discord.lavaplayer.source.twitch.TwitchStreamAudioSourceManager;
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
 import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
@@ -49,7 +53,7 @@ public class PlayerManager {
     public PlayerManager() {
         this.musicManagers = new HashMap<>();
         this.audioPlayerManager = new DefaultAudioPlayerManager();
-        this.audioPlayerManager.registerSourceManager(new YoutubeAudioSourceManager(true, new Music(), new Web(), new AndroidTestsuite(), new AndroidLite(), new AndroidMusic(), new MediaConnect(), new Ios(), new TvHtml5Embedded()));
+        this.audioPlayerManager.registerSourceManager(new YoutubeAudioSourceManager(true, new AndroidVr(), new Web(), new Ios(), new WebEmbedded(), new AndroidTestsuite()));
 
         String spotifyClientID = Dotenv.load().get("SPOTIFYCLIENTID");
         String spotifyClientSecret = Dotenv.load().get("SPOTIFYCLIENTSECRET");
@@ -61,6 +65,9 @@ public class PlayerManager {
             System.err.println("Spotify manager was unable to load due to a complication. Continuing without it...\nError: " + exception);
             hasSpotify = false;
         }
+
+        this.audioPlayerManager.registerSourceManager(new TwitchStreamAudioSourceManager());
+        this.audioPlayerManager.registerSourceManager(new BandcampAudioSourceManager(true));
 
         AudioSourceManagers.registerRemoteSources(this.audioPlayerManager);
         AudioSourceManagers.registerLocalSource(this.audioPlayerManager);
@@ -296,14 +303,17 @@ public class PlayerManager {
         public final Object eventOrChannel;
         public final Long channelId;
         public final Long guildId;
+        public final String username;
 
         public TrackUserData(Object eventOrChannel) {
             this.eventOrChannel = eventOrChannel;
             GuildMessageChannelUnion channel;
             if (eventOrChannel instanceof CommandEvent) {
                 channel = ((CommandEvent) eventOrChannel).getChannel();
+                username = ((CommandEvent) eventOrChannel).getUser().getEffectiveName();
             } else {
                 channel = (GuildMessageChannelUnion) eventOrChannel;
+                username = "";
             }
             this.channelId = channel.getIdLong();
             this.guildId = channel.getGuild().getIdLong();
