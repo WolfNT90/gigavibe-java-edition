@@ -14,9 +14,10 @@ import java.util.Objects;
 
 public class RadioDataFetcher {
 
-    public static String getStreamSongNow(String url) {
+    public static String[] getStreamSongNow(String url) {
         try {
-            List<String> metadata = getMetadata(url);
+            List<String> metadata = Objects.requireNonNull(getMetadata(url));
+            ArrayList<String> dataList = new ArrayList<>();
             if (!Objects.requireNonNull(metadata).get(1).isEmpty()) {
                 int metaInt = Integer.parseInt(metadata.get(1));
                 URL audioURL = new URL(url);
@@ -24,29 +25,34 @@ public class RadioDataFetcher {
                 connection.setRequestProperty("Icy-Metadata", "1");
                 connection.connect();
                 InputStream inputStream = connection.getInputStream();
-                int i = 0;
-                while (true) {
-                    i++;
-                    if (i > 10) {
-                        break;
-                    }
+                for (int i = 0; i < 10; i++) {
                     inputStream.skip(metaInt);
                     String meta = readMetaData(inputStream);
+
                     if (meta.startsWith("StreamTitle")) {
                         String title = meta.substring("StreamTitle=".length(), meta.indexOf(';'));
-                        connection.disconnect();
-                        inputStream.close();
-                        return title.substring(1, title.length() - 1);
+                        dataList.add(title.substring(1, title.length() - 1));
                     }
+                    // TODO: add track author/artist here and in LRCLIBMANAGER
                 }
-                return "Unknown title";
+
+                connection.disconnect();
+                inputStream.close();
+
+                // If no titles found, return "Unknown title"
+                if (dataList.isEmpty()) {
+                    return new String[]{"Unknown title"};
+                }
+
+                return dataList.toArray(new String[0]); // Return all found titles
             } else {
-                return "Unknown title";
+                return new String[]{"Unknown title"};
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return "";
+
+        return new String[]{"Unknown title"};
     }
 
     private static String readMetaData(InputStream stream) throws IOException {
@@ -63,7 +69,7 @@ public class RadioDataFetcher {
         return Objects.requireNonNull(getMetadata(url)).get(0);
     }
 
-    private static List<String> getMetadata(String url) { // length of 7 done
+    private static List<String> getMetadata(String url) {
         try {
             // get all generic metadata
             HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
@@ -107,7 +113,7 @@ public class RadioDataFetcher {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return null;
+        return new ArrayList<>();
     }
 
 }

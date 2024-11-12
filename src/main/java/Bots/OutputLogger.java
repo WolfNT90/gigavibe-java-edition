@@ -35,11 +35,13 @@ public class OutputLogger {
     // (Makes it easier to understand the log and would allow us to prefix logs with LOG/ERR for neatness)
 
     private synchronized static void WriteLogs() throws IOException {
-        String logText = MergedLogStream.toString();
-        if (logText.length() >= 1) {
-            MergedLogStream.reset();
-            logger.write(logText);
-            logger.flush();
+        if (INITIALISED) {
+            String logText = MergedLogStream.toString();
+            if (logText.length() >= 1) {
+                MergedLogStream.reset();
+                logger.write(logText);
+                logger.flush();
+            }
         }
     }
 
@@ -83,7 +85,8 @@ public class OutputLogger {
                     }
                 }
             };
-            new Timer().scheduleAtFixedRate(logTask, 0, 5000);
+            new Timer(true).scheduleAtFixedRate(logTask, 0, 5000);
+            Runtime.getRuntime().addShutdownHook(new Thread(OutputLogger::Close));
         } else {
             err.println("Unexpected double call to OutputLogger.Init");
         }

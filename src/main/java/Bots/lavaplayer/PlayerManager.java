@@ -9,12 +9,15 @@ import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.player.DefaultAudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.source.AudioSourceManagers;
+import com.sedmelluq.discord.lavaplayer.source.bandcamp.BandcampAudioSourceManager;
+import com.sedmelluq.discord.lavaplayer.source.beam.BeamAudioSourceManager;
+import com.sedmelluq.discord.lavaplayer.source.getyarn.GetyarnAudioSourceManager;
+import com.sedmelluq.discord.lavaplayer.source.twitch.TwitchStreamAudioSourceManager;
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
 import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import dev.lavalink.youtube.YoutubeAudioSourceManager;
 import dev.lavalink.youtube.clients.*;
-import dev.lavalink.youtube.clients.skeleton.Client;
 import io.github.cdimascio.dotenv.Dotenv;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Guild;
@@ -38,7 +41,7 @@ import java.util.regex.Pattern;
 import static Bots.Main.*;
 
 public class PlayerManager {
-    private static final HashMap<String, Pattern> patterns = new HashMap<>() {{
+    private static final Map<String, Pattern> patterns = new HashMap<>() {{
         put("Spotify", Pattern.compile("<img src=\"([^\"]+)\" width=\""));
         put("SoundCloud", Pattern.compile("\"thumbnail_url\":\"([^\"]+)\",\""));
     }};
@@ -50,7 +53,7 @@ public class PlayerManager {
     public PlayerManager() {
         this.musicManagers = new HashMap<>();
         this.audioPlayerManager = new DefaultAudioPlayerManager();
-        this.audioPlayerManager.registerSourceManager(new YoutubeAudioSourceManager(true, new Music(), new Web(), new AndroidTestsuite(), new AndroidLite(), new AndroidMusic(), new MediaConnect(), new Ios(), new TvHtml5Embedded()));
+        this.audioPlayerManager.registerSourceManager(new YoutubeAudioSourceManager(true, new AndroidVr(), new Web(), new Ios(), new WebEmbedded(), new AndroidTestsuite()));
 
         String spotifyClientID = Dotenv.load().get("SPOTIFYCLIENTID");
         String spotifyClientSecret = Dotenv.load().get("SPOTIFYCLIENTSECRET");
@@ -63,25 +66,28 @@ public class PlayerManager {
             hasSpotify = false;
         }
 
+        this.audioPlayerManager.registerSourceManager(new TwitchStreamAudioSourceManager());
+        this.audioPlayerManager.registerSourceManager(new BandcampAudioSourceManager(true));
+
         AudioSourceManagers.registerRemoteSources(this.audioPlayerManager);
         AudioSourceManagers.registerLocalSource(this.audioPlayerManager);
     }
 
-    public static PlayerManager getInstance() {
+    public synchronized static PlayerManager getInstance() {
         if (INSTANCE == null) {
             INSTANCE = new PlayerManager();
         }
         return INSTANCE;
     }
 
-    public GuildMusicManager getMusicManager(Guild guild) {
+    public synchronized GuildMusicManager getMusicManager(Guild guild) {
         return this.musicManagers.computeIfAbsent(guild.getIdLong(), (guildId) -> {
             final GuildMusicManager guildMusicManager = new GuildMusicManager(this.audioPlayerManager);
             guildMusicManager.audioPlayer.setFilterFactory((track, format, output) -> {
                 VibratoPcmAudioFilter vibrato = new VibratoPcmAudioFilter(output, format.channelCount, format.sampleRate);
                 TimescalePcmAudioFilter timescale = new TimescalePcmAudioFilter(vibrato, format.channelCount, format.sampleRate);
-                guildMusicManager.filters.put(audioFilters.Vibrato, vibrato);
-                guildMusicManager.filters.put(audioFilters.Timescale, timescale);
+                guildMusicManager.filters.put(AudioFilters.Vibrato, vibrato);
+                guildMusicManager.filters.put(AudioFilters.Timescale, timescale);
                 //Just make sure the items are in the reverse order they were made and all will be good
                 return Arrays.asList(new AudioFilter[]{timescale, vibrato});
             });
@@ -99,7 +105,7 @@ public class PlayerManager {
             String trackName = trackNameArray[trackNameArray.length - 1];
             embed.setTitle(trackName, audioTrack.getInfo().uri);
         } else {
-            embed.setTitle(audioTrack.getInfo().title, audioTrack.getInfo().uri);
+            embed.setTitle(sanitise(audioTrack.getInfo().title), audioTrack.getInfo().uri);
         }
         String length;
         if (audioTrack.getInfo().length > 432000000 || audioTrack.getInfo().length <= 1) {
@@ -127,7 +133,7 @@ public class PlayerManager {
         replyWithEmbed(eventOrChannel, embed, false);
     }
 
-    public CompletableFuture<LoadResult> loadAndPlay(Object eventOrChannel, String trackUrl, Boolean sendEmbed) {
+    public CompletableFuture<LoadResult> loadAndPlay(Object eventOrChannel, String trackUrl, boolean sendEmbed) {
         assert (eventOrChannel instanceof CommandEvent || eventOrChannel instanceof GuildMessageChannelUnion);
         CompletableFuture<LoadResult> loadResultFuture = new CompletableFuture<>();
         Guild commandGuild;
@@ -160,6 +166,9 @@ public class PlayerManager {
             public void playlistLoaded(AudioPlaylist audioPlaylist) {
                 boolean autoplaying = AutoplayGuilds.contains(commandGuild.getIdLong());
                 final List<AudioTrack> tracks = audioPlaylist.getTracks();
+                for (AudioTrack audioTrack : tracks) {
+                    audioTrack.setUserData(new TrackUserData(eventOrChannel));
+                }
                 if (!tracks.isEmpty()) {
                     AudioTrack track = tracks.get(0);
                     if (autoplaying)
@@ -184,7 +193,7 @@ public class PlayerManager {
                             if (tracks.get(i).getInfo().title == null) {
                                 embed.appendDescription(i + 1 + ". [" + tracks.get(i).getInfo().identifier + "](" + tracks.get(i).getInfo().uri + ")\n");
                             } else {
-                                embed.appendDescription(i + 1 + ". [" + tracks.get(i).getInfo().title + "](" + tracks.get(i).getInfo().uri + ")\n");
+                                embed.appendDescription(i + 1 + ". [" + sanitise(tracks.get(i).getInfo().title) + "](" + tracks.get(i).getInfo().uri + ")\n");
                             }
                         }
                         if (tracks.size() > 5) {
@@ -194,9 +203,6 @@ public class PlayerManager {
                         if (sendEmbed) {
                             replyWithEmbed(eventOrChannel, embed.build());
                         }
-                    }
-                    for (AudioTrack audioTrack : tracks) {
-                        audioTrack.setUserData(new TrackUserData(eventOrChannel));
                     }
                 }
                 loadResultFuture.complete(LoadResult.PLAYLIST_LOADED);
@@ -213,7 +219,7 @@ public class PlayerManager {
             @Override
             public void loadFailed(FriendlyException e) {
                 System.err.println("Track failed to load.\nURL: \"" + trackUrl + "\"\nReason: " + e.getMessage());
-                skips.remove(commandGuild.getIdLong());
+                skipCountGuilds.remove(commandGuild.getIdLong());
 
                 final StringBuilder loadFailedBuilder = new StringBuilder();
                 if (e.getMessage().toLowerCase().contains("search response: 400")) {
@@ -297,14 +303,17 @@ public class PlayerManager {
         public final Object eventOrChannel;
         public final Long channelId;
         public final Long guildId;
+        public final String username;
 
         public TrackUserData(Object eventOrChannel) {
             this.eventOrChannel = eventOrChannel;
             GuildMessageChannelUnion channel;
             if (eventOrChannel instanceof CommandEvent) {
                 channel = ((CommandEvent) eventOrChannel).getChannel();
+                username = ((CommandEvent) eventOrChannel).getUser().getEffectiveName();
             } else {
                 channel = (GuildMessageChannelUnion) eventOrChannel;
+                username = "";
             }
             this.channelId = channel.getIdLong();
             this.guildId = channel.getGuild().getIdLong();

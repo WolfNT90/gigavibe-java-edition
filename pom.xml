@@ -84,14 +84,14 @@
 
         <dependency>
             <groupId>dev.lavalink.youtube</groupId>
-            <artifactId>v2</artifactId>
-            <version>1.5.1</version>
+            <artifactId>youtube-plugin</artifactId>
+            <version>c358ae412eeae61f87b6f99acfa57e8b91cc9218</version>
         </dependency>
 
         <dependency>
             <groupId>net.dv8tion</groupId>
             <artifactId>JDA</artifactId>
-            <version>5.0.0-beta.21</version>
+            <version>5.1.0</version>
         </dependency>
 
         <dependency>

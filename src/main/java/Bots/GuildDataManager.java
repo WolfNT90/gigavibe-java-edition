@@ -30,7 +30,7 @@ import static Bots.Main.*;
  */
 public class GuildDataManager {
     public final static String configFolder = "config";
-    public final static HashMap<Object, JSONObject> Configs = new HashMap<>();
+    public final static Map<Object, JSONObject> Configs = new HashMap<>();
 
     public static void Init() {
         boolean madeFolder = Paths.get(configFolder).toFile().mkdir();
@@ -207,16 +207,15 @@ public class GuildDataManager {
     }
 
     public static void RemoveConfig(Object identifier) {
-        JSONObject config = Configs.get(identifier);
-        if (config == null) {
-            System.err.println("Attempted to remove the config " + identifier + " but no such config exists");
-            return;
-        }
-        String filePath = configFolder + "/" + identifier + ".json";
-        if (!new File(filePath).delete()) {
-            System.err.println("Unable to delete the config file for " + identifier); // In the context of guilds leaving, this isn't an issue
-        }
         Configs.remove(identifier);
+        File file = new File(configFolder + "/" + identifier + ".json");
+        if (file.exists()) {
+            if (!file.delete()) {
+                System.err.println("Unable to delete the config file for " + identifier);
+            }
+        } else {
+            System.err.println("Attempted to delete non-existent config " + identifier);
+        }
     }
 
     public static void SaveQueues(JDA bot) { // queue restoration can only occur once because this here does NOT give the tracks their data.
@@ -249,10 +248,10 @@ public class GuildDataManager {
                 writer.write(AutoplayGuilds.contains(guild.getIdLong()) + "\n"); // is autoplaying
                 // track modifiers
                 writer.write(player.getVolume() + "\n"); // volume
-                writer.write(((TimescalePcmAudioFilter) musicManager.filters.get(audioFilters.Timescale)).getSpeed() + "\n"); // speed
-                writer.write(((TimescalePcmAudioFilter) musicManager.filters.get(audioFilters.Timescale)).getPitch() + "\n"); // pitch
-                writer.write(((VibratoPcmAudioFilter) musicManager.filters.get(audioFilters.Vibrato)).getFrequency() + "\n"); // vibrato freq
-                writer.write(((VibratoPcmAudioFilter) musicManager.filters.get(audioFilters.Vibrato)).getDepth() + "\n"); // vibrato depth
+                writer.write(((TimescalePcmAudioFilter) musicManager.filters.get(AudioFilters.Timescale)).getSpeed() + "\n"); // speed
+                writer.write(((TimescalePcmAudioFilter) musicManager.filters.get(AudioFilters.Timescale)).getPitch() + "\n"); // pitch
+                writer.write(((VibratoPcmAudioFilter) musicManager.filters.get(AudioFilters.Vibrato)).getFrequency() + "\n"); // vibrato freq
+                writer.write(((VibratoPcmAudioFilter) musicManager.filters.get(AudioFilters.Vibrato)).getDepth() + "\n"); // vibrato depth
                 writer.write(playingTrack.getInfo().uri + "\n"); // track now url
                 if (!musicManager.scheduler.queue.isEmpty()) {
                     for (AudioTrack track : musicManager.scheduler.queue)
@@ -280,7 +279,7 @@ public class GuildDataManager {
                     if (Filename.getClass() == String.class) {
                         ReadConfig((String) Filename);
                     } else {
-                        ReadGuildConfig((Long) Filename);
+                        ReadGuildConfig((long) Filename);
                     }
                 } catch (IOException exception) {
                     System.err.println("Unable to load the existing non-screwed version for Config " + Filename);
